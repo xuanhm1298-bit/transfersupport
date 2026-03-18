@@ -4,6 +4,7 @@ exports.handler = async (event) => {
   }
   try {
     const { imageBase64, imageMime } = JSON.parse(event.body);
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -23,10 +24,24 @@ exports.handler = async (event) => {
         }]
       })
     });
+
     const data = await response.json();
+
+    if (!response.ok) {
+      return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: data.error?.message || 'API error' }) };
+    }
+
     const text = data.content?.[0]?.text || '';
-    return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) };
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, debug: { hasContent: !!data.content, length: text.length } })
+    };
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: err.message })
+    };
   }
 };
