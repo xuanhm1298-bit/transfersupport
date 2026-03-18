@@ -5,21 +5,17 @@ exports.handler = async (event) => {
   try {
     const { imageBase64, imageMime } = JSON.parse(event.body);
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const apiKey = process.env.GEMINI_API_KEY;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: imageMime, data: imageBase64 } },
-            { type: 'text', text: 'Extract the release note text from this image. Return ONLY the raw plain text exactly as shown, preserving line breaks and bullet characters (• or *). No explanation, no markdown. Just the plain text.' }
+        contents: [{
+          parts: [
+            { inline_data: { mime_type: imageMime, data: imageBase64 } },
+            { text: 'Extract the release note text from this image. Return ONLY the raw plain text exactly as shown, preserving line breaks and bullet characters (• or *). No explanation, no markdown. Just the plain text.' }
           ]
         }]
       })
@@ -31,11 +27,11 @@ exports.handler = async (event) => {
       return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: data.error?.message || 'API error' }) };
     }
 
-    const text = data.content?.[0]?.text || '';
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, debug: { hasContent: !!data.content, length: text.length } })
+      body: JSON.stringify({ text })
     };
   } catch (err) {
     return {
